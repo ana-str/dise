@@ -129,6 +129,7 @@ class EyeglassDataset(Dataset):
         self.augment = augment
         self.image_size = image_size
         self.pad = Pad((0, 0, max(image_size) - image_size[0], max(image_size) - image_size[1]))
+        self.mask_values=[0, 1]
 
     def __len__(self):
         return len(self.items) // 2  # Assuming an image-mask pair for each item

@@ -26,6 +26,12 @@ dir_img = Path('./data/imgs/')
 dir_mask = Path('./data/masks/')
 dir_checkpoint = Path('./checkpoints/')
 
+import wandb
+wandb.login()
+wandb.login(key="1da3729d6dfaff15faa7afc015bfa5857dfc0b59")  # Correct method
+
+
+eyedataset_train = None
 
 def train_model(
         model,
@@ -56,6 +62,7 @@ def train_model(
     # loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
     # train_loader = DataLoader(train_set, shuffle=True, **loader_args)
     # val_loader = DataLoader(val_set, shuffle=False, drop_last=True, **loader_args)
+    global eyedataset_train
 
     loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
 
@@ -195,7 +202,7 @@ def train_model(
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
             state_dict = model.state_dict()
-            state_dict['mask_values'] = dataset.mask_values
+            state_dict['mask_values'] = eyedataset_train.mask_values
             torch.save(state_dict, str(dir_checkpoint / 'checkpoint_epoch{}.pth'.format(epoch)))
             logging.info(f'Checkpoint {epoch} saved!')
 
