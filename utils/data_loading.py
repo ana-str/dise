@@ -126,7 +126,7 @@ class EyeglassDataset(Dataset):
     def __init__(self, image_dir, augment=False, image_size=(512, 512)):
 
         if isinstance(image_dir, str):
-            self.items = glob.glob(os.path.jon(image_dir, "*jpg"))
+            self.items = glob.glob(os.path.join(image_dir, "*jpg"))
         elif isinstance(image_dir, list) and all(isinstance(d, str) for d in image_dir):
             self.items = []
             for dir_path in image_dir:
