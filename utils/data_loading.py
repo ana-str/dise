@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import glob
 from torch.utils.data import Dataset, DataLoader
+
 import torchvision.transforms.v2 as T
 from torchvision.transforms.v2 import Compose, ToImage, ToDtype
 from torchvision.transforms.v2 import Pad
@@ -139,8 +140,7 @@ class EyeglassDataset(Dataset):
         self.pad = Pad((0, 0, max(image_size) - image_size[0], max(image_size) - image_size[1]))
         self.mask_values=[0, 1]
 
-        #if is string luam imagini
-        #daca
+
 
     def __len__(self):
         return len(self.items)

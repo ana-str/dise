@@ -4,6 +4,7 @@ import os
 import random
 import sys
 import torch
+import glob
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
@@ -66,16 +67,39 @@ def train_model(
 
     loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
 
-    train_img_dir = '/data/image_databases/detection_benchmark/gt_boxing/near_annotated_2024_train'
-    test_img_dir = '/data/image_databases/detection_benchmark/gt_boxing/near_annotated_2024_test'
+    base_dir = '/data/image_databases/detection_benchmark/gt_boxing'
+
+    # Initialize lists for train and test directories
+    train_dirs = []
+    test_dirs = []
+
+    # Traverse the directories in the base path
+    for folder in os.listdir(base_dir):
+        folder_path = os.path.join(base_dir, folder)
+
+        # Ensure it's a directory
+        if os.path.isdir(folder_path):
+            # Check if it's a train folder (contains '_train' but not 'metahuman')
+            if '_train' in folder and 'metahuman' not in folder:
+                train_dirs.append(folder_path)
+            # Check if it's a test folder (contains '_test' but not 'metahuman')
+            elif '_test' in folder and 'metahuman' not in folder:
+                test_dirs.append(folder_path)
+
+    #train_img_dir = '/data/image_databases/detection_benchmark/gt_boxing/near_annotated_2024_train'
+    #test_img_dir = '/data/image_databases/detection_benchmark/gt_boxing/near_annotated_2024_test'
+
+    train_img_dirs = glob.glob(f"{train_dirs}/*/")
+    if not train_img_dirs:  # If no subfolders, use the main directory
+        train_img_dirs = [train_img_dirs]
 
     eyedataset_train = EyeglassDataset(
-        image_dir=train_img_dir,
+        image_dir=train_img_dirs,
         augment=True
     )
 
     eyedataset_val = EyeglassDataset(
-    image_dir=test_img_dir,
+    image_dir=test_dirs,
     augment=False)
     # Create train_loader and val_loader
 
@@ -88,10 +112,6 @@ def train_model(
     n_train=len(eyedataset_train)
     n_val=len(eyedataset_val)
 
-
-
-
-    # de modificat nr de clase sa fie 2
     # (Initialize logging)
     wandb.login(key='1da3729d6dfaff15faa7afc015bfa5857dfc0b59')
     experiment = wandb.init(project='U-Net-eyeglasses' )
@@ -270,7 +290,7 @@ if __name__ == '__main__':
             model=model,
             epochs=args.epochs,
             batch_size=args.batch_size,
-            learning_rate=args.lr,
+            learning_rate=args.lr/5,
             device=device,
             img_scale=args.scale,
             val_percent=args.val / 100,
