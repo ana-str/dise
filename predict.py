@@ -52,6 +52,7 @@ def get_args():
     return parser.parse_args()
 
 
+
 def get_output_filenames(args):
     def _generate_name(fn):
         return f'{os.path.splitext(fn)[0]}_OUT.png'

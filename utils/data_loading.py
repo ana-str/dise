@@ -2,6 +2,7 @@ import os
 import logging
 import numpy as np
 import torch
+import glob
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms.v2 as T
 from torchvision.transforms.v2 import Compose, ToImage, ToDtype
@@ -124,20 +125,32 @@ class CarvanaDataset(BasicDataset):
 class EyeglassDataset(Dataset):
     def __init__(self, image_dir, augment=False, image_size=(512, 512)):
 
-        self.image_dir = image_dir
-        self.items = sorted(os.listdir(image_dir))
+        if isinstance(image_dir, str):
+            self.items = glob.glob(os.path.jon(image_dir, "*jpg"))
+        elif isinstance(image_dir, list) and all(isinstance(d, str) for d in image_dir):
+            self.items = []
+            for dir_path in image_dir:
+                self.items.extend(glob.glob(os.path.join(dir_path, "*.jpg")))
+        else:
+            raise ValueError("image_dir must be a string or a list of strings")
+
         self.augment = augment
         self.image_size = image_size
         self.pad = Pad((0, 0, max(image_size) - image_size[0], max(image_size) - image_size[1]))
         self.mask_values=[0, 1]
 
+        #if is string luam imagini
+        #daca
+
     def __len__(self):
-        return len(self.items) // 2  # Assuming an image-mask pair for each item
+        return len(self.items)
 
     def __getitem__(self, idx):
         # Define image and mask paths based on naming convention
-        image_path = os.path.join(self.image_dir, self.items[idx])  # Use 'idx' instead of 'index'
-        mask_path = os.path.join(self.image_dir, self.items[idx].replace('.jpg', '.png'))
+        image_path =self.items[idx]
+
+        mask_path = image_path.replace('jpg', 'png')
+
 
         # Load the image and mask
         image = Image.open(image_path).convert("RGB")
