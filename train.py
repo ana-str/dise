@@ -101,6 +101,8 @@ def train_model(
     eyedataset_val = EyeglassDataset(
     image_dir=test_dirs,
     augment=False)
+
+
     # Create train_loader and val_loader
 
     # Arguments for DataLoader

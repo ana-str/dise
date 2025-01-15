@@ -118,7 +118,6 @@ class BasicDataset(Dataset):
             'mask': torch.as_tensor(mask.copy()).long().contiguous()
         }
 
-
 class CarvanaDataset(BasicDataset):
     def __init__(self, images_dir, mask_dir, scale=1):
         super().__init__(images_dir, mask_dir, scale, mask_suffix='_mask')
@@ -128,7 +127,15 @@ class EyeglassDataset(Dataset):
         self.items = []
         self.masks = []
 
+        # Debugging: Print received image_dir and its type
+        print(f"Received image_dir: {image_dir}, type: {type(image_dir)}")
+
         if isinstance(image_dir, str):
+            # Validate that the directory exists
+            if not os.path.exists(image_dir):
+                raise ValueError(f"The directory {image_dir} does not exist.")
+            print(f"Searching in directory: {image_dir}")
+
             # Recursively search for JPG images and their corresponding PNG masks
             for root, _, files in os.walk(image_dir):
                 for file in files:
@@ -141,24 +148,33 @@ class EyeglassDataset(Dataset):
                             self.items.append(image_path)
                             self.masks.append(mask_path)
         elif isinstance(image_dir, list) and all(isinstance(d, str) for d in image_dir):
+            # Validate that all directories in the list exist
+            for dir_path in image_dir:
+                if not os.path.exists(dir_path):
+                    raise ValueError(f"The directory {dir_path} does not exist.")
+            print(f"Searching in directories: {image_dir}")
+
             for dir_path in image_dir:
                 for root, _, files in os.walk(dir_path):
                     for file in files:
                         if file.endswith(".jpg"):
-                            image_path = os.path.join(root, file)
-                            mask_path = os.path.join(root, file.replace(".jpg", ".png"))
+                                image_path = os.path.join(root, file)
+                                mask_path = os.path.join(root, file.replace(".jpg", ".png"))
 
-                        if os.path.exists(mask_path):
-                            self.items.append(image_path)
-                            self.masks.append(mask_path)
+                                # Ensure the mask exists
+                                if os.path.exists(mask_path):
+                                    self.items.append(image_path)
+                                    self.masks.append(mask_path)
         else:
             raise ValueError("image_dir must be a string or a list of strings")
+
+        # Final debug information
+        print(f"Found {len(self.items)} images and {len(self.masks)} masks.")
 
         self.augment = augment
         self.image_size = image_size
         self.pad = Pad((0, 0, max(image_size) - image_size[0], max(image_size) - image_size[1]))
         self.mask_values = [0, 1]
-
 
     def __len__(self):
         return len(self.items)
