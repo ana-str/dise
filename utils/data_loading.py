@@ -123,42 +123,41 @@ class CarvanaDataset(BasicDataset):
     def __init__(self, images_dir, mask_dir, scale=1):
         super().__init__(images_dir, mask_dir, scale, mask_suffix='_mask')
 
-    class EyeglassDataset(Dataset):
-        def __init__(self, image_dir, augment=False, image_size=(512, 512)):
-            self.items = []
-            self.masks = []
+class EyeglassDataset(Dataset):
+    def __init__(self, image_dir, augment=False, image_size=(512, 512)):
+        self.items = []
+        self.masks = []
 
-            if isinstance(image_dir, str):
-                # Recursively search for JPG images and their corresponding PNG masks
-                for root, _, files in os.walk(image_dir):
+        if isinstance(image_dir, str):
+            # Recursively search for JPG images and their corresponding PNG masks
+            for root, _, files in os.walk(image_dir):
+                for file in files:
+                    if file.endswith(".jpg"):
+                        image_path = os.path.join(root, file)
+                        mask_path = os.path.join(root, file.replace(".jpg", ".png"))
+
+                        # Ensure the mask exists
+                        if os.path.exists(mask_path):
+                            self.items.append(image_path)
+                            self.masks.append(mask_path)
+        elif isinstance(image_dir, list) and all(isinstance(d, str) for d in image_dir):
+            for dir_path in image_dir:
+                for root, _, files in os.walk(dir_path):
                     for file in files:
                         if file.endswith(".jpg"):
                             image_path = os.path.join(root, file)
                             mask_path = os.path.join(root, file.replace(".jpg", ".png"))
 
-                            # Ensure the mask exists
-                            if os.path.exists(mask_path):
-                                self.items.append(image_path)
-                                self.masks.append(mask_path)
-            elif isinstance(image_dir, list) and all(isinstance(d, str) for d in image_dir):
-                for dir_path in image_dir:
-                    for root, _, files in os.walk(dir_path):
-                        for file in files:
-                            if file.endswith(".jpg"):
-                                image_path = os.path.join(root, file)
-                                mask_path = os.path.join(root, file.replace(".jpg", ".png"))
+                        if os.path.exists(mask_path):
+                            self.items.append(image_path)
+                            self.masks.append(mask_path)
+        else:
+            raise ValueError("image_dir must be a string or a list of strings")
 
-                                # Ensure the mask exists
-                                if os.path.exists(mask_path):
-                                    self.items.append(image_path)
-                                    self.masks.append(mask_path)
-            else:
-                raise ValueError("image_dir must be a string or a list of strings")
-
-            self.augment = augment
-            self.image_size = image_size
-            self.pad = Pad((0, 0, max(image_size) - image_size[0], max(image_size) - image_size[1]))
-            self.mask_values = [0, 1]
+        self.augment = augment
+        self.image_size = image_size
+        self.pad = Pad((0, 0, max(image_size) - image_size[0], max(image_size) - image_size[1]))
+        self.mask_values = [0, 1]
 
 
     def __len__(self):
@@ -189,4 +188,5 @@ class CarvanaDataset(BasicDataset):
             "image": image,
             "mask": mask.squeeze(0).long()  # Remove channel dimension
         }
+
 
