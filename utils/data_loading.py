@@ -132,6 +132,7 @@ class EyeglassDataset(Dataset):
 
         if isinstance(image_dir, str):
             # Validate that the directory exists
+            print(f"image_dir passed to EyeglassDataset: {image_dir}, type: {type(image_dir)}")
             if not os.path.exists(image_dir):
                 raise ValueError(f"The directory {image_dir} does not exist.")
             print(f"Searching in directory: {image_dir}")
@@ -148,8 +149,10 @@ class EyeglassDataset(Dataset):
                             self.items.append(image_path)
                             self.masks.append(mask_path)
         elif isinstance(image_dir, list) and all(isinstance(d, str) for d in image_dir):
+            print(f"Processing a list of directories: {image_dir}")
             # Validate that all directories in the list exist
             for dir_path in image_dir:
+                print(f"image_dir passed to EyeglassDataset: {image_dir}, type: {type(image_dir)}")
                 if not os.path.exists(dir_path):
                     raise ValueError(f"The directory {dir_path} does not exist.")
             print(f"Searching in directories: {image_dir}")

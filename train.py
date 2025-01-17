@@ -89,18 +89,30 @@ def train_model(
     #train_img_dir = '/data/image_databases/detection_benchmark/gt_boxing/near_annotated_2024_train'
     #test_img_dir = '/data/image_databases/detection_benchmark/gt_boxing/near_annotated_2024_test'
 
-    train_img_dirs = glob.glob(f"{train_dirs}/*/")
+    train_img_dirs = []
+    for train_dir in train_dirs:
+        train_img_dirs.extend(glob.glob(f"{train_dir}/*/"))
+
     if not train_img_dirs:  # If no subfolders, use the main directory
-        train_img_dirs = [train_img_dirs]
+        train_img_dirs = train_dirs
+
+    print(f"train_img_dirs: {train_img_dirs}, type: {type(train_img_dirs)}")
 
     eyedataset_train = EyeglassDataset(
         image_dir=train_img_dirs,
         augment=True
     )
 
+    print(f"test_dirs: {test_dirs}, type: {type(test_dirs)}")
+
     eyedataset_val = EyeglassDataset(
     image_dir=test_dirs,
     augment=False)
+
+    if not train_dirs:
+        raise ValueError("No valid train directories found.")
+    if not test_dirs:
+        raise ValueError("No valid test directories found.")
 
 
     # Create train_loader and val_loader
