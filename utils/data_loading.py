@@ -168,6 +168,14 @@ class EyeglassDataset(Dataset):
                                 if os.path.exists(mask_path):
                                     self.items.append(image_path)
                                     self.masks.append(mask_path)
+                                else:
+                                    mask_path = os.path.join(root, file.replace(".jpg", ".bmp"))
+                                    # Ensure the mask exists
+                                    if os.path.exists(mask_path):
+                                        self.items.append(image_path)
+                                        self.masks.append(mask_path)
+
+                print(dir_path, len(self.items))
         else:
             raise ValueError("image_dir must be a string or a list of strings")
 

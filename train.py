@@ -29,7 +29,7 @@ dir_checkpoint = Path('./checkpoints/')
 wandb.login()
 
 # Supported image extensions
-image_extensions = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff"}
+image_extensions = {".jpg"}
 
 # Helper function to count images in a folder
 def count_images(folder_path):
