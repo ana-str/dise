@@ -80,10 +80,10 @@ def train_model(
         # Ensure it's a directory
         if os.path.isdir(folder_path):
             # Check if it's a train folder (contains '_train' but not 'metahuman')
-            if '_train' in folder and 'metahuman' not in folder:
+            if '_train' in folder or 'metahuman'  in folder:
                 train_dirs.append(folder_path)
             # Check if it's a test folder (contains '_test' but not 'metahuman')
-            elif '_test' in folder and 'metahuman' not in folder:
+            elif '_test' in folder:
                 test_dirs.append(folder_path)
 
     #train_img_dir = '/data/image_databases/detection_benchmark/gt_boxing/near_annotated_2024_train'
