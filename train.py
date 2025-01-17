@@ -13,8 +13,6 @@ from pathlib import Path
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
-
-
 import wandb
 from evaluate import evaluate
 from unet import UNet
@@ -22,17 +20,22 @@ from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.data_loading import EyeglassDataset
 from utils.dice_score import dice_loss
 
-
 dir_img = Path('./data/imgs/')
 dir_mask = Path('./data/masks/')
 dir_checkpoint = Path('./checkpoints/')
 
-import wandb
 wandb.login()
-wandb.login(key="1da3729d6dfaff15faa7afc015bfa5857dfc0b59")  # Correct method
 
+# Supported image extensions
+image_extensions = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff"}
 
-eyedataset_train = None
+# Helper function to count images in a folder
+def count_images(folder_path):
+    """Count the number of valid images in a folder."""
+    if not os.path.isdir(folder_path):
+        return 0
+    files = os.listdir(folder_path)
+    return sum(1 for f in files if os.path.splitext(f)[-1].lower() in image_extensions)
 
 def train_model(
         model,
@@ -48,21 +51,6 @@ def train_model(
         momentum: float = 0.999,
         gradient_clipping: float = 1.0,
 ):
-    # # 1. Create dataset
-    # try:
-    #     dataset = CarvanaDataset(dir_img, dir_mask, img_scale)
-    # except (AssertionError, RuntimeError, IndexError):
-    #     dataset = BasicDataset(dir_img, dir_mask, img_scale)
-    #
-    # # 2. Split into train / validation partitions
-    # n_val = int(len(dataset) * val_percent)
-    # n_train = len(dataset) - n_val
-    # train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
-    #
-    # # 3. Create data loaders
-    # loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
-    # train_loader = DataLoader(train_set, shuffle=True, **loader_args)
-    # val_loader = DataLoader(val_set, shuffle=False, drop_last=True, **loader_args)
     global eyedataset_train
 
     loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
@@ -86,9 +74,17 @@ def train_model(
             elif '_test' in folder and 'metahuman' not in folder:
                 test_dirs.append(folder_path)
 
-    #train_img_dir = '/data/image_databases/detection_benchmark/gt_boxing/near_annotated_2024_train'
-    #test_img_dir = '/data/image_databases/detection_benchmark/gt_boxing/near_annotated_2024_test'
+    # Count images in each train and test folder
+    print("Counting images in train and test directories...")
+    for train_dir in train_dirs:
+        image_count = count_images(train_dir)
+        print(f"In folder {os.path.basename(train_dir)}, there are {image_count} images in total.")
 
+    for test_dir in test_dirs:
+        image_count = count_images(test_dir)
+        print(f"In folder {os.path.basename(test_dir)}, there are {image_count} images in total.")
+
+    # Process train directories
     train_img_dirs = []
     for train_dir in train_dirs:
         train_img_dirs.extend(glob.glob(f"{train_dir}/*/"))
@@ -103,32 +99,25 @@ def train_model(
         augment=True
     )
 
-    print(f"test_dirs: {test_dirs}, type: {type(test_dirs)}")
-
     eyedataset_val = EyeglassDataset(
-    image_dir=test_dirs,
-    augment=False)
+        image_dir=test_dirs,
+        augment=False)
 
     if not train_dirs:
         raise ValueError("No valid train directories found.")
     if not test_dirs:
         raise ValueError("No valid test directories found.")
 
-
     # Create train_loader and val_loader
-
-    # Arguments for DataLoader
-    loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
-
     train_loader = DataLoader(eyedataset_train, shuffle=True, **loader_args)
     val_loader = DataLoader(eyedataset_val, shuffle=False, **loader_args)
 
-    n_train=len(eyedataset_train)
-    n_val=len(eyedataset_val)
+    n_train = len(eyedataset_train)
+    n_val = len(eyedataset_val)
 
-    # (Initialize logging)
-    wandb.login(key='1da3729d6dfaff15faa7afc015bfa5857dfc0b59')
-    experiment = wandb.init(project='U-Net-eyeglasses' )
+    # Logging
+    wandb.login()
+    experiment = wandb.init(project='U-Net-eyeglasses')
     experiment.config.update(
         dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
              val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp)
