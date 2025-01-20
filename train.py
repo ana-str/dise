@@ -13,6 +13,7 @@ from pathlib import Path
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
+from utils.dice_score import dice_coeff
 
 
 import wandb
@@ -183,6 +184,8 @@ def train_model(
                             multiclass=True
                         )
 
+                        dice_coff=0 # de calculat dice_coefficent
+
                 optimizer.zero_grad(set_to_none=True)
                 grad_scaler.scale(loss).backward()
                 grad_scaler.unscale_(optimizer)
@@ -195,6 +198,7 @@ def train_model(
                 epoch_loss += loss.item()
                 experiment.log({
                     'train loss': loss.item(),
+                    'train Dice': 0,
                     'step': global_step,
                     'epoch': epoch
                 })
@@ -220,6 +224,8 @@ def train_model(
                             experiment.log({
                                 'learning rate': optimizer.param_groups[0]['lr'],
                                 'validation Dice': val_score,
+                                'validation loss': 0,
+
                                 'images': wandb.Image(images[0].cpu()),
                                 'masks': {
                                     'true': wandb.Image(true_masks[0].float().cpu()),
@@ -233,6 +239,58 @@ def train_model(
                             pass
 
             #---- la fel ptr val_loader
+        for batch in train_loader:
+            images, true_masks = batch['image'], batch['mask']
+
+            assert images.shape[1] == model.n_channels, \
+                f'Network has been defined with {model.n_channels} input channels, ' \
+                f'but loaded images have {images.shape[1]} channels. Please check that ' \
+                'the images are loaded correctly.'
+
+            images = images.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
+            true_masks = true_masks.to(device=device, dtype=torch.long)
+
+            with torch.autocast(device.type if device.type != 'mps' else 'cpu', enabled=amp):
+                masks_pred = model(images)
+                if model.n_classes == 1:
+                    loss = criterion(masks_pred.squeeze(1), true_masks.float())
+                    loss += dice_loss(F.sigmoid(masks_pred.squeeze(1)), true_masks.float(), multiclass=False)
+                    # Calculate Dice coefficient
+                    train_dice = dice_coeff(F.sigmoid(masks_pred.squeeze(1)) > 0.5, true_masks.float(),
+                                            reduce_batch_first=False)
+                else:
+                    loss = criterion(masks_pred, true_masks)
+                    loss += dice_loss(
+                        F.softmax(masks_pred, dim=1).float(),
+                        F.one_hot(true_masks, model.n_classes).permute(0, 3, 1, 2).float(),
+                        multiclass=True
+                    )
+                    # Calculate Dice coefficient (excluding background)
+                    train_dice = dice_coeff(
+                        F.softmax(masks_pred, dim=1).argmax(dim=1),
+                        true_masks,
+                        multiclass=True
+                    )
+
+            optimizer.zero_grad(set_to_none=True)
+            grad_scaler.scale(loss).backward()
+            grad_scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
+            grad_scaler.step(optimizer)
+            grad_scaler.update()
+
+            # Update progress bar and log metrics
+            pbar.update(images.shape[0])
+            global_step += 1
+            epoch_loss += loss.item()
+            experiment.log({
+                'train loss': loss.item(),
+                'train Dice': train_dice.item(),  # Log the train Dice score
+                'step': global_step,
+                'epoch': epoch
+            })
+            pbar.set_postfix(**{'loss (batch)': loss.item(), 'Dice (batch)': train_dice.item()})
+
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
             state_dict = model.state_dict()
