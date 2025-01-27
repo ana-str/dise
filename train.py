@@ -129,7 +129,7 @@ def train_model(
 
     # (Initialize logging)
     wandb.login(key='1da3729d6dfaff15faa7afc015bfa5857dfc0b59')
-    experiment = wandb.init(project='U-Net-eyeglasses' )
+    experiment = wandb.init(project='U-Net-eyeglasses')
     experiment.config.update(
         dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
              val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp)
@@ -150,7 +150,7 @@ def train_model(
     # 4. Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
     optimizer = optim.RMSprop(model.parameters(),
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)  # goal: maximize Dice score
+    #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)  # goal: maximize Dice score
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
     global_step = 0
@@ -184,7 +184,7 @@ def train_model(
                             multiclass=True
                         )
 
-                        dice_coff=0 # de calculat dice_coefficent
+                        dice_score=0 # de calculat dice_score, dupa rvsluate*(
 
                 optimizer.zero_grad(set_to_none=True)
                 grad_scaler.scale(loss).backward()
@@ -198,7 +198,7 @@ def train_model(
                 epoch_loss += loss.item()
                 experiment.log({
                     'train loss': loss.item(),
-                    'train Dice': 0,
+                    'train Dice': train_dice.item(), #dice_score, # sa modific dupa evaluate.py
                     'step': global_step,
                     'epoch': epoch
                 })
@@ -216,15 +216,15 @@ def train_model(
                             if not (torch.isinf(value.grad) | torch.isnan(value.grad)).any():
                                 histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
 
-                        val_score = evaluate(model, val_loader, device, amp)
-                        scheduler.step(val_score)
+                        val_score, validation_loss = evaluate(model, val_loader, device, amp)
+                       # scheduler.step(val_score)
 
                         logging.info('Validation Dice score: {}'.format(val_score))
                         try:
                             experiment.log({
                                 'learning rate': optimizer.param_groups[0]['lr'],
                                 'validation Dice': val_score,
-                                'validation loss': 0,
+                                'validation loss': validation_loss,
 
                                 'images': wandb.Image(images[0].cpu()),
                                 'masks': {
@@ -257,7 +257,7 @@ def train_model(
                     loss += dice_loss(F.sigmoid(masks_pred.squeeze(1)), true_masks.float(), multiclass=False)
                     # Calculate Dice coefficient
                     train_dice = dice_coeff(F.sigmoid(masks_pred.squeeze(1)) > 0.5, true_masks.float(),
-                                            reduce_batch_first=False)
+                                            reduce_batch_first=False).mean()
                 else:
                     loss = criterion(masks_pred, true_masks)
                     loss += dice_loss(
@@ -283,12 +283,15 @@ def train_model(
             pbar.update(images.shape[0])
             global_step += 1
             epoch_loss += loss.item()
-            experiment.log({
+            try:
+               experiment.log({
                 'train loss': loss.item(),
                 'train Dice': train_dice.item(),  # Log the train Dice score
                 'step': global_step,
                 'epoch': epoch
             })
+            except AttributeError:
+                logging.error("train_dice is not a scalar tensor. Check its computation.")
             pbar.set_postfix(**{'loss (batch)': loss.item(), 'Dice (batch)': train_dice.item()})
 
         if save_checkpoint:
@@ -303,7 +306,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=1, help='Batch size')
-    parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-5,
+    parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-5, #modific in rularea 2
                         help='Learning rate', dest='lr')
     parser.add_argument('--load', '-f', type=str, default=False, help='Load model from a .pth file')
     parser.add_argument('--scale', '-s', type=float, default=0.5, help='Downscaling factor of the images')
@@ -362,7 +365,7 @@ if __name__ == '__main__':
             model=model,
             epochs=args.epochs,
             batch_size=args.batch_size,
-            learning_rate=args.lr/5,
+            learning_rate=args.lr,
             device=device,
             img_scale=args.scale,
             val_percent=args.val / 100,

@@ -20,6 +20,10 @@ from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.data_loading import EyeglassDataset
 from utils.dice_score import dice_loss
 
+
+#evaluate
+
+
 # Directories for images, masks, and checkpoints
 dir_img = Path('./data/imgs/')
 dir_mask = Path('./data/masks/')
