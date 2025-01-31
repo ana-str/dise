@@ -194,9 +194,10 @@ def train_model(
                 else:
                     masks_pred = F.one_hot(masks_pred.argmax(dim=1), model.n_classes).permute(0, 3, 1, 2).float()
                     #masks_pred = masks_pred.squeeze()
-                    if true_masks.dim() == 3:
-                        true_masks = true_masks.unsqueeze(1)  # Add channel dimension
-                    print(f"After fix: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
+                    # Remove any unnecessary singleton dimensions
+                    masks_pred = masks_pred.squeeze(1)
+                    true_masks = true_masks.squeeze(1)
+                    print(f"After squeeze: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
 
                     # print(masks_pred[:, 1:].shape,  true_masks[:, 1:].shape)
 
