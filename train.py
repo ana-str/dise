@@ -189,11 +189,11 @@ def train_model(
 
                 # Calculate Dice score
                 if model.n_classes == 1:
-                    mask_pred = (F.sigmoid(mask_pred) > 0.5).float()
-                    dice_score += dice_coeff(mask_pred, true_masks, reduce_batch_first=False)
+                    masks_pred = (F.sigmoid(masks_pred) > 0.5).float()
+                    dice_score += dice_coeff(masks_pred, true_masks, reduce_batch_first=False)
                 else:
-                    mask_pred = F.one_hot(mask_pred.argmax(dim=1), model.n_classes).permute(0, 3, 1, 2).float()
-                    dice_score += multiclass_dice_coeff(mask_pred[:, 1:], true_masks[:, 1:],
+                    masks_pred = F.one_hot(masks_pred.argmax(dim=1), model.n_classes).permute(0, 3, 1, 2).float()
+                    dice_score += multiclass_dice_coeff(masks_pred[:, 1:], true_masks[:, 1:],
                                                         reduce_batch_first=False)
 
                 optimizer.zero_grad(set_to_none=True)
