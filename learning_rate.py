@@ -173,6 +173,7 @@ def train_model(
     for epoch in range(1, epochs + 1):
         model.train()
         epoch_loss = 0
+        train_dice = torch.tensor(0.0, device=device) # modificare
 
         # Adjust learning rate at specific epochs
         adjust_learning_rate(optimizer, epoch)

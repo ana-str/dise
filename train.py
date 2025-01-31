@@ -13,8 +13,7 @@ from pathlib import Path
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
-from utils.dice_score import dice_coeff
-
+from utils.dice_score import dice_coeff, multiclass_dice_coeff
 
 import wandb
 from evaluate import evaluate
@@ -159,10 +158,12 @@ def train_model(
     for epoch in range(1, epochs + 1):
         model.train()
         epoch_loss = 0
+        dice_score = 0
         with tqdm(total=n_train, desc=f'Epoch {epoch}/{epochs}', unit='img') as pbar:
+            num_images = 0
             for batch in train_loader:
                 images, true_masks = batch['image'], batch['mask']
-
+                num_images += images.shape[0]
                 assert images.shape[1] == model.n_channels, \
                     f'Network has been defined with {model.n_channels} input channels, ' \
                     f'but loaded images have {images.shape[1]} channels. Please check that ' \
@@ -184,7 +185,16 @@ def train_model(
                             multiclass=True
                         )
 
-                        dice_score=0 # de calculat dice_score, dupa rvsluate*(
+
+
+                # Calculate Dice score
+                if model.n_classes == 1:
+                    mask_pred = (F.sigmoid(mask_pred) > 0.5).float()
+                    dice_score += dice_coeff(mask_pred, true_masks, reduce_batch_first=False)
+                else:
+                    mask_pred = F.one_hot(mask_pred.argmax(dim=1), model.n_classes).permute(0, 3, 1, 2).float()
+                    dice_score += multiclass_dice_coeff(mask_pred[:, 1:], true_masks[:, 1:],
+                                                        reduce_batch_first=False)
 
                 optimizer.zero_grad(set_to_none=True)
                 grad_scaler.scale(loss).backward()
@@ -193,13 +203,13 @@ def train_model(
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
 
-
+                dice_score = dice_score / max(num_images, 1)
                 pbar.update(images.shape[0])
                 global_step += 1
                 epoch_loss += loss.item()
                 experiment.log({
                     'train loss': loss.item(),
-                    'train Dice': train_dice.item(), #dice_score, # sa modific dupa evaluate.py
+                    'train Dice': dice_score, #dice_score, # sa modific dupa evaluate.py
                     'step': global_step,
                     'epoch': epoch
                 })
@@ -239,61 +249,6 @@ def train_model(
                         except:
                             pass
 
-            #---- la fel ptr val_loader
-        for batch in train_loader:
-            images, true_masks = batch['image'], batch['mask']
-
-            assert images.shape[1] == model.n_channels, \
-                f'Network has been defined with {model.n_channels} input channels, ' \
-                f'but loaded images have {images.shape[1]} channels. Please check that ' \
-                'the images are loaded correctly.'
-
-            images = images.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
-            true_masks = true_masks.to(device=device, dtype=torch.long)
-
-            with torch.autocast(device.type if device.type != 'mps' else 'cpu', enabled=amp):
-                masks_pred = model(images)
-                if model.n_classes == 1:
-                    loss = criterion(masks_pred.squeeze(1), true_masks.float())
-                    loss += dice_loss(F.sigmoid(masks_pred.squeeze(1)), true_masks.float(), multiclass=False)
-                    # Calculate Dice coefficient
-                    train_dice = dice_coeff(F.sigmoid(masks_pred.squeeze(1)) > 0.5, true_masks.float(),
-                                            reduce_batch_first=False).mean()
-                else:
-                    loss = criterion(masks_pred, true_masks)
-                    loss += dice_loss(
-                        F.softmax(masks_pred, dim=1).float(),
-                        F.one_hot(true_masks, model.n_classes).permute(0, 3, 1, 2).float(),
-                        multiclass=True
-                    )
-                    # Calculate Dice coefficient (excluding background)
-                    train_dice = dice_coeff(
-                        F.softmax(masks_pred, dim=1).argmax(dim=1),
-                        true_masks,
-                        multiclass=True
-                    )
-
-            optimizer.zero_grad(set_to_none=True)
-            grad_scaler.scale(loss).backward()
-            grad_scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
-            grad_scaler.step(optimizer)
-            grad_scaler.update()
-
-            # Update progress bar and log metrics
-            pbar.update(images.shape[0])
-            global_step += 1
-            epoch_loss += loss.item()
-            try:
-               experiment.log({
-                'train loss': loss.item(),
-                'train Dice': train_dice.item(),  # Log the train Dice score
-                'step': global_step,
-                'epoch': epoch
-            })
-            except AttributeError:
-                logging.error("train_dice is not a scalar tensor. Check its computation.")
-            pbar.set_postfix(**{'loss (batch)': loss.item(), 'Dice (batch)': train_dice.item()})
 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
