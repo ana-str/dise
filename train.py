@@ -194,7 +194,8 @@ def train_model(
                 else:
                     masks_pred = F.one_hot(masks_pred.argmax(dim=1), model.n_classes).permute(0, 3, 1, 2).float()
                     #masks_pred = masks_pred.squeeze()
-                    # Remove any unnecessary singleton dimensions
+                    print(f"Before squeeze: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
+
                     masks_pred = masks_pred.squeeze(1)
                     true_masks = true_masks.squeeze(1)
                     print(f"After squeeze: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
