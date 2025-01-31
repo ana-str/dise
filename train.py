@@ -193,7 +193,13 @@ def train_model(
                     dice_score += dice_coeff(masks_pred, true_masks, reduce_batch_first=False)
                 else:
                     masks_pred = F.one_hot(masks_pred.argmax(dim=1), model.n_classes).permute(0, 3, 1, 2).float()
+                    #masks_pred = masks_pred.squeeze()
+                    if masks_pred.shape != true_masks.shape:
+                        print(f"Shape mismatch: masks_pred={masks_pred.shape}, true_masks={true_masks.shape}")
+
                     print(masks_pred[:, 1:].shape,  true_masks[:, 1:].shape)
+
+                    #####
                     dice_score += multiclass_dice_coeff(masks_pred[:, 1:], true_masks[:, 1:],
                                                         reduce_batch_first=False)
 
