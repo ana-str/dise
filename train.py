@@ -96,14 +96,14 @@ def train_model(
     if not train_img_dirs:  # If no subfolders, use the main directory
         train_img_dirs = train_dirs
 
-    print(f"train_img_dirs: {train_img_dirs}, type: {type(train_img_dirs)}")
+    #print(f"train_img_dirs: {train_img_dirs}, type: {type(train_img_dirs)}")
 
     eyedataset_train = EyeglassDataset(
         image_dir=train_img_dirs,
         augment=True
     )
 
-    print(f"test_dirs: {test_dirs}, type: {type(test_dirs)}")
+    #print(f"test_dirs: {test_dirs}, type: {type(test_dirs)}")
 
     eyedataset_val = EyeglassDataset(
     image_dir=test_dirs,
@@ -194,10 +194,10 @@ def train_model(
                 else:
                     masks_pred = F.one_hot(masks_pred.argmax(dim=1), model.n_classes).permute(0, 3, 1, 2).float()
                     #masks_pred = masks_pred.squeeze()
-                    print(f"Before squeeze: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
+                    #print(f"Before squeeze: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
                     masks_pred = masks_pred.squeeze(1)
                     masks_pred = masks_pred.argmax(dim=1, keepdim=False)
-                    print(f"After squeeze: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
+                    #print(f"After squeeze: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
 
                     # print(masks_pred[:, 1:].shape,  true_masks[:, 1:].shape)
 
