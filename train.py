@@ -195,9 +195,8 @@ def train_model(
                     masks_pred = F.one_hot(masks_pred.argmax(dim=1), model.n_classes).permute(0, 3, 1, 2).float()
                     #masks_pred = masks_pred.squeeze()
                     print(f"Before squeeze: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
-
                     masks_pred = masks_pred.squeeze(1)
-                    true_masks = true_masks.squeeze(1)
+                    masks_pred = masks_pred.argmax(dim=1, keepdim=False)
                     print(f"After squeeze: masks_pred shape: {masks_pred.shape}, true_masks shape: {true_masks.shape}")
 
                     # print(masks_pred[:, 1:].shape,  true_masks[:, 1:].shape)
@@ -271,7 +270,7 @@ def train_model(
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')
-    parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=32, help='Batch size')
+    parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=8, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-5, #modific in rularea 2
                         help='Learning rate', dest='lr')
     parser.add_argument('--load', '-f', type=str, default=False, help='Load model from a .pth file')
