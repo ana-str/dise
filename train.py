@@ -193,7 +193,7 @@ def train_model(
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
 
-                print (train_dice)
+
                 pbar.update(images.shape[0])
                 global_step += 1
                 epoch_loss += loss.item()
