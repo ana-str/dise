@@ -33,7 +33,7 @@ wandb.login(key="1da3729d6dfaff15faa7afc015bfa5857dfc0b59")  # Correct method
 
 
 eyedataset_train = None
-lr_type = 'stepLR'
+lr_type = 'plateau'
 def train_model(
         model,
         device,
