@@ -33,7 +33,7 @@ wandb.login(key="1da3729d6dfaff15faa7afc015bfa5857dfc0b59")  # Correct method
 
 
 eyedataset_train = None
-
+lr_type = 'stepLR'
 def train_model(
         model,
         device,
@@ -131,7 +131,8 @@ def train_model(
     experiment = wandb.init(project='U-Net-eyeglasses')
     experiment.config.update(
         dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
-             val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp)
+             val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp,
+             scheduler=lr_type)
     )
 
     logging.info(f'''Starting training:
@@ -149,8 +150,19 @@ def train_model(
     # 4. Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
     optimizer = optim.RMSprop(model.parameters(),
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
-    #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)  # goal: maximize Dice score
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, last_epoch=-1)
+    scheduler = None
+    if lr_type == 'plateau':
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)  # goal: maximize Dice score
+    elif lr_type == 'stepLR':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, last_epoch=-1)
+    elif lr_type == 'none':
+        scheduler = None
+    else:
+        raise ValueError("Unknown scheduler")
+
+
+
+
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
     global_step = 0
@@ -238,7 +250,8 @@ def train_model(
                                 histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
 
                         val_score, validation_loss = evaluate(model, val_loader, device, amp)
-                        scheduler.step()
+                        if scheduler:
+                            scheduler.step()
 
                         logging.info('Validation Dice score: {}'.format(val_score))
 
