@@ -32,6 +32,7 @@ wandb.login()
 #wandb.login(key="1da3729d6dfaff15faa7afc015bfa5857dfc0b59")  # Correct method
 
 
+
 eyedataset_train = None
 lr_type = 'none'
 def train_model(
@@ -128,7 +129,7 @@ def train_model(
 
     # (Initialize logging)
     wandb.login(key='1da3729d6dfaff15faa7afc015bfa5857dfc0b59')
-    experiment = wandb.init(project='U-Net-eyeglasses', name=f"run_lr{learning_rate}_epochs{epochs}")
+    experiment = wandb.init(project='U-Net-eyeglasses', name=f"run_lr{learning_rate}_epochs{epochs}_sch_{lr_type}")
     experiment.config.update(
         dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
              val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp,
@@ -150,16 +151,23 @@ def train_model(
     # 4. Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
     optimizer = optim.RMSprop(model.parameters(),
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
-    scheduler = None
     if lr_type == 'plateau':
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)  # goal: maximize Dice score
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)
     elif lr_type == 'stepLR':
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, last_epoch=-1)
+    elif lr_type == 'cosine':
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
+    elif lr_type == 'exponential':
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    elif lr_type == 'onecycle':
+        scheduler = optim.lr_scheduler.OneCycleLR(
+            optimizer, max_lr=learning_rate,
+            steps_per_epoch=len(train_loader), epochs=epochs
+        )
     elif lr_type == 'none':
         scheduler = None
     else:
-        raise ValueError("Unknown scheduler")
-
+        raise ValueError(f"Unknown scheduler type: {lr_type}")
 
 
 
@@ -321,7 +329,8 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-
+    global lr_type
+    lr_type = args.scheduler
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
