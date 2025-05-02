@@ -29,8 +29,7 @@ dir_checkpoint = Path('./checkpoints/')
 
 import wandb
 wandb.login()
-#wandb.login(key="1da3729d6dfaff15faa7afc015bfa5857dfc0b59")  # Correct method
-
+wandb.login(key="1da3729d6dfaff15faa7afc015bfa5857dfc0b59")  # Correct method
 
 
 eyedataset_train = None
@@ -129,7 +128,7 @@ def train_model(
 
     # (Initialize logging)
     wandb.login(key='1da3729d6dfaff15faa7afc015bfa5857dfc0b59')
-    experiment = wandb.init(project='U-Net-eyeglasses', name=f"run_lr{learning_rate}_epochs{epochs}_sch_{lr_type}")
+    experiment = wandb.init(project='U-Net-eyeglasses', name=f"run_lr{learning_rate}_epochs{epochs}")
     experiment.config.update(
         dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
              val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp,
@@ -151,23 +150,16 @@ def train_model(
     # 4. Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
     optimizer = optim.RMSprop(model.parameters(),
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
+    scheduler = None
     if lr_type == 'plateau':
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)  # goal: maximize Dice score
     elif lr_type == 'stepLR':
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, last_epoch=-1)
-    elif lr_type == 'cosine':
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
-    elif lr_type == 'exponential':
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
-    elif lr_type == 'onecycle':
-        scheduler = optim.lr_scheduler.OneCycleLR(
-            optimizer, max_lr=learning_rate,
-            steps_per_epoch=len(train_loader), epochs=epochs
-        )
     elif lr_type == 'none':
         scheduler = None
     else:
-        raise ValueError(f"Unknown scheduler type: {lr_type}")
+        raise ValueError("Unknown scheduler")
+
 
 
 
@@ -285,29 +277,11 @@ def train_model(
 
 
         if save_checkpoint:
-
-           #Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-           #state_dict = model.state_dict()
-           #state_dict['mask_values'] = eyedataset_train.mask_values
-           #torch.save(state_dict, str(dir_checkpoint / 'checkpoint_epoch{}.pth'.format(epoch)))
-           #logging.info(f'Checkpoint {epoch} saved!')
-           artifact = wandb.Artifact(
-               name=f"model-epoch{epoch}",  # nume unic pe run
-               type="model"
-           )
-
-           # Salvează state_dict-ul temporar
-           temp_path = f"checkpoint_epoch{epoch}.pth"
-           state_dict = model.state_dict()
-           state_dict['mask_values'] = eyedataset_train.mask_values
-           torch.save(state_dict, temp_path)
-
-           # Atașează fișierul la artifact și loghează în WandB
-           artifact.add_file(temp_path)
-           experiment.log_artifact(artifact)
-
-           logging.info(f"Checkpoint-ul pentru epoch {epoch} a fost salvat în WandB.")
-           os.remove(temp_path)  # curăță fișierul temporar
+            Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
+            state_dict = model.state_dict()
+            state_dict['mask_values'] = eyedataset_train.mask_values
+            torch.save(state_dict, str(dir_checkpoint / 'checkpoint_epoch{}.pth'.format(epoch)))
+            logging.info(f'Checkpoint {epoch} saved!')
 
 
 def get_args():
@@ -329,8 +303,7 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    #global lr_type
-    lr_type = args.scheduler
+
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -381,7 +354,6 @@ if __name__ == '__main__':
             val_percent=args.val / 100,
             amp=args.amp
         )
-
 
 
 
