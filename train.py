@@ -115,8 +115,8 @@ def train_model(
 
     loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
 
-    #base_dir = '/data/image_databases/detection_benchmark/gt_boxing'
-    base_dir = 'C:/Users/strug/Desktop/imagini_si_masti_de_test'
+    base_dir = '/data/image_databases/detection_benchmark/gt_boxing'
+    #base_dir = 'C:/Users/strug/Desktop/imagini_si_masti_de_test'
 
     # Initialize lists for train and test directories
     train_dirs = []
