@@ -329,7 +329,7 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    global lr_type
+    #global lr_type
     lr_type = args.scheduler
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
