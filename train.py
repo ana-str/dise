@@ -86,7 +86,7 @@ def train_model(
         model,
         device,
         epochs: int = 5,
-        batch_size: int = 4,
+        batch_size: int = 2,
         learning_rate: float = 1e-5,
         val_percent: float = 0.1,
         save_checkpoint: bool = True,
